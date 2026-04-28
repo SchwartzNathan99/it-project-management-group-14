@@ -1,9 +1,10 @@
 {
-  "name": "auth0-express-pug-sample",
+  "name": "penguin-auto-specialists-app",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
   "scripts": {
+    "start": "node src/index.js",
     "dev": "nodemon src/index.js",
     "ui": "browser-sync start --config bs-config.js"
   },

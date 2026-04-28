@@ -148,6 +148,7 @@ app.get('/login/:page', (req, res) => {
   });
 });
 
+/*
 app.get('/logout/:page', (req, res) => {
   const { page } = req.params;
 
@@ -155,6 +156,7 @@ app.get('/logout/:page', (req, res) => {
     returnTo: page,
   });
 });
+*/
 
 /**
  * Server Activation
