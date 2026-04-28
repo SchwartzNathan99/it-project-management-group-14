@@ -129,6 +129,8 @@ app.get('/users', async (req, res) => {
 
 // > Authentication
 
+/*
+// for user flow when logging in (unused)
 app.get('/sign-up/:page', (req, res) => {
   const { page } = req.params;
 
@@ -148,7 +150,7 @@ app.get('/login/:page', (req, res) => {
   });
 });
 
-/*
+
 app.get('/logout/:page', (req, res) => {
   const { page } = req.params;
 
