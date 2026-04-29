@@ -2,64 +2,51 @@
  * Required External Modules
  */
 
-const pool = require('./db');
-
-async function getOrCreateUser(auth0User) {
-  const auth0Id = auth0User.sub;
-
-  // 1. Check if the user already exists
-  // Note: Column names are case-sensitive in Postgres if created with quotes, 
-  // but generally standard practice is to use exact case as defined in schema.
-  const checkQuery = 'SELECT * FROM users WHERE Authzero_id = $1';
-  const checkResult = await pool.query(checkQuery, [auth0Id]);
-
-  if (checkResult.rows.length > 0) {
-    return checkResult.rows[0];
-  }
-
-  
-  // 3. Insert the new user
-  // We leave out UserID (GENERATED ALWAYS) and created_at (DEFAULT CURRENT_TIMESTAMP)
-  // because PostgreSQL will automatically handle them for us.
-  const insertQuery = `
-    INSERT INTO users (authzero_id, email, role) 
-    VALUES ($1, $2, $3) 
-    RETURNING *; 
-  `;
-
-  const values = [
-    auth0Id,            // $1: Authzero_id
-    auth0User.email,    // $2: Email
-    'Customer'          // $3: Role
-  ];
-
-  const insertResult = await pool.query(insertQuery, values);
-
-  return insertResult.rows[0];
-}
-
 const express = require('express');
 const path = require('path');
 const { auth, requiresAuth } = require('express-openid-connect');
 
-require("dotenv").config();
+require('dotenv').config();
+
+const {
+  getOrCreateUser,
+  updateUserProfile,
+  getEmployees,
+  getVehiclesByUser,
+  addVehicle,
+  getServicesCatalog,
+  getPartsCatalog,
+  createRepairOrder,
+  getRepairOrders,
+  getRepairOrdersByUser,
+  getRepairOrderByID,
+  updateRepairOrder,
+  createInvoice,
+  getInvoicesByUser,
+  getAllInvoices,
+  getInvoiceByID,
+  payInvoice,
+} = require('./db-queries');
+
+const { requiresRole } = require('./middleware');
 
 /**
  * App Variables
  */
 
-const env = process.env.NODE_ENV || "development";
 const app = express();
 const port = process.env.PORT || 3000;
 
 /**
- *  App Configuration
+ * App Configuration
  */
 
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'pug');
 
 app.use(express.static(path.join(__dirname, '..', 'public')));
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
 
 app.use(
   auth({
@@ -69,12 +56,25 @@ app.use(
     secret: process.env.SESSION_SECRET,
     authRequired: false,
     auth0Logout: true,
-  }),
+  })
 );
 
-app.use((req, res, next) => {
+// Attach auth state and DB user role to res.locals for all views
+app.use(async (req, res, next) => {
   res.locals.isAuthenticated = req.oidc.isAuthenticated();
   res.locals.activeRoute = req.originalUrl;
+  res.locals.userRole = null;
+
+  if (req.oidc.isAuthenticated()) {
+    try {
+      const dbUser = await getOrCreateUser(req.oidc.user);
+      req.dbUser = dbUser;
+      res.locals.userRole = dbUser.role;
+    } catch (err) {
+      return next(err);
+    }
+  }
+
   next();
 });
 
@@ -82,83 +82,277 @@ app.use((req, res, next) => {
  * Routes Definitions
  */
 
-// > Home
+// ── Home ──────────────────────────────────────────────────────────────────────
 
 app.get('/', (req, res) => {
   res.render('home');
 });
 
-// > Profile
+// ── Create Repair ─────────────────────────────────────────────────────────────
 
-app.get('/profile', requiresAuth(), async (req, res) => {
+app.get('/create-repair', requiresAuth(), async (req, res) => {
   try {
-    // 1. Call our reusable function using the Auth0 user data
-    const dbUser = await getOrCreateUser(req.oidc.user);
+    const dbUser = req.dbUser;
+    const [vehicles, services] = await Promise.all([
+      getVehiclesByUser(dbUser.userid),
+      getServicesCatalog(),
+    ]);
+    res.render('create-repair', {
+      dbUser,
+      vehicles,
+      services,
+      error: req.query.error || null,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Internal Server Error');
+  }
+});
 
-    // 2. Pass BOTH the Auth0 data and the Database data to the Pug template
-    res.render('profile', {
-      user: req.oidc.user, // From Auth0 (has picture, nickname)
-      dbUser: dbUser       // From Postgres (has your internal ID, role, etc.)
+app.post('/create-repair', requiresAuth(), async (req, res) => {
+  try {
+    const dbUser = req.dbUser;
+    const {
+      firstName, lastName, streetAddress, city, state, zipCode, phoneNumber,
+      vehicleID, newVehicleMake, newVehicleModel, newVehicleYear,
+      newVehicleColor, newVehiclePlate, newVehicleVIN,
+      scheduledDate, scheduledTime,
+    } = req.body;
+
+    // serviceIDs may be a string (single) or array (multiple)
+    let serviceIDs = req.body.serviceIDs || [];
+    if (!Array.isArray(serviceIDs)) serviceIDs = [serviceIDs];
+
+    // Update user profile
+    await updateUserProfile(dbUser.userid, {
+      firstName, lastName, streetAddress, city, state, zipCode, phoneNumber,
     });
 
-  } catch (error) {
-    console.error("Database Error:", error);
-    res.status(500).send("Internal Server Error");
+    // Resolve vehicle
+    let resolvedVehicleID = vehicleID;
+    if (vehicleID === 'new') {
+      if (!newVehicleMake || !newVehicleModel || !newVehicleYear || !newVehicleVIN) {
+        return res.redirect('/create-repair?error=Please+fill+out+all+required+vehicle+fields.');
+      }
+      const newVehicle = await addVehicle(dbUser.userid, {
+        make: newVehicleMake,
+        model: newVehicleModel,
+        year: newVehicleYear,
+        color: newVehicleColor,
+        licensePlateNumber: newVehiclePlate,
+        vin: newVehicleVIN,
+      });
+      resolvedVehicleID = newVehicle.vehicleid;
+    }
+
+    await createRepairOrder({
+      vehicleID: resolvedVehicleID,
+      userID: dbUser.userid,
+      scheduledDate,
+      scheduledTime,
+      serviceIDs,
+    });
+
+    const role = dbUser.role;
+    if (role === 'Employee' || role === 'Owner') {
+      res.redirect('/repair-orders?success=Repair+order+created.');
+    } else {
+      res.redirect('/my-services?success=Your+repair+has+been+scheduled!');
+    }
+  } catch (err) {
+    console.error(err);
+    res.redirect('/create-repair?error=Something+went+wrong.+Please+try+again.');
   }
 });
 
-// > External API
+// ── Repair Order List ─────────────────────────────────────────────────────────
 
-app.get('/external-api', (req, res) => {
-  res.render('external-api');
-});
-
-// > User
-app.get('/users', async (req, res) => {
+app.get('/repair-orders', requiresRole('Employee', 'Owner'), async (req, res) => {
   try {
-    // Write your raw SQL query
-    const result = await pool.query('SELECT * FROM users');
-
-    // Send the database rows back to the client
-    res.json(result.rows);
-  } catch (error) {
-    console.error('Database query error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    const { status, techID } = req.query;
+    const [orders, employees] = await Promise.all([
+      getRepairOrders({ status, techID }),
+      getEmployees(),
+    ]);
+    res.render('repair-order-list', {
+      orders,
+      employees,
+      filters: { status: status || '', techID: techID || '' },
+      success: req.query.success || null,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Internal Server Error');
   }
 });
 
-// > Authentication
+// ── Repair Order Detail ───────────────────────────────────────────────────────
 
-/*
-// for user flow when logging in (unused)
-app.get('/sign-up/:page', (req, res) => {
-  const { page } = req.params;
-
-  res.oidc.login({
-    returnTo: page,
-    authorizationParams: {
-      screen_hint: 'signup',
-    },
-  });
+app.get('/repair-orders/:id', requiresRole('Employee', 'Owner'), async (req, res) => {
+  try {
+    const repairID = parseInt(req.params.id, 10);
+    const [order, employees, parts] = await Promise.all([
+      getRepairOrderByID(repairID),
+      getEmployees(),
+      getPartsCatalog(),
+    ]);
+    if (!order) return res.status(404).send('Repair order not found.');
+    res.render('repair-order', {
+      order,
+      employees,
+      parts,
+      success: req.query.success || null,
+      error: req.query.error || null,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Internal Server Error');
+  }
 });
 
-app.get('/login/:page', (req, res) => {
-  const { page } = req.params;
+app.post('/repair-orders/:id', requiresRole('Employee', 'Owner'), async (req, res) => {
+  try {
+    const repairID = parseInt(req.params.id, 10);
+    const {
+      status, assignedTechID, techNotes, scheduledDate, scheduledTime,
+    } = req.body;
 
-  res.oidc.login({
-    returnTo: page,
-  });
+    // Parse service updates: laborHours_<repairServiceID>
+    const services = [];
+    for (const key of Object.keys(req.body)) {
+      const match = key.match(/^laborHours_(\d+)$/);
+      if (match) {
+        services.push({ repairServiceID: match[1], laborHours: req.body[key] || null });
+      }
+    }
+
+    // Parse part updates: partQty_<partID>
+    const parts = [];
+    for (const key of Object.keys(req.body)) {
+      const match = key.match(/^partQty_(\d+)$/);
+      if (match) {
+        const qty = parseInt(req.body[key], 10) || 0;
+        if (qty > 0) parts.push({ partID: match[1], quantity: qty });
+      }
+    }
+
+    await updateRepairOrder(repairID, {
+      status,
+      assignedTechID,
+      techNotes,
+      scheduledDate,
+      scheduledTime,
+      services,
+      parts,
+    });
+
+    res.redirect(`/repair-orders/${repairID}?success=Changes+saved.`);
+  } catch (err) {
+    console.error(err);
+    res.redirect(`/repair-orders/${req.params.id}?error=Failed+to+save+changes.`);
+  }
 });
 
+// ── Generate Invoice ──────────────────────────────────────────────────────────
 
-app.get('/logout/:page', (req, res) => {
-  const { page } = req.params;
+app.post('/repair-orders/:id/invoice', requiresRole('Employee', 'Owner'), async (req, res) => {
+  try {
+    const repairID = parseInt(req.params.id, 10);
+    const order = await getRepairOrderByID(repairID);
+    if (!order) return res.status(404).send('Repair order not found.');
 
-  res.oidc.logout({
-    returnTo: page,
-  });
+    // Calculate total
+    const partsTotal = (order.parts || []).reduce(
+      (sum, p) => sum + parseFloat(p.cost) * parseInt(p.quantity, 10),
+      0
+    );
+    const laborTotal = (order.services || []).reduce(
+      (sum, s) => sum + parseFloat(s.hourlyrate) * parseFloat(s.laborhours || 0),
+      0
+    );
+    const total = partsTotal + laborTotal;
+
+    await createInvoice(repairID, order.userid, total.toFixed(2));
+
+    res.redirect(`/repair-orders/${repairID}?success=Invoice+generated+successfully.`);
+  } catch (err) {
+    console.error(err);
+    res.redirect(`/repair-orders/${req.params.id}?error=Failed+to+generate+invoice.`);
+  }
 });
-*/
+
+// ── Payment / My Invoices ─────────────────────────────────────────────────────
+
+app.get('/payment', requiresAuth(), async (req, res) => {
+  try {
+    const dbUser = req.dbUser;
+    let invoices;
+    if (dbUser.role === 'Employee' || dbUser.role === 'Owner') {
+      invoices = await getAllInvoices();
+    } else {
+      invoices = await getInvoicesByUser(dbUser.userid);
+    }
+    res.render('payment', {
+      invoices,
+      dbUser,
+      success: req.query.success || null,
+      error: req.query.error || null,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Internal Server Error');
+  }
+});
+
+app.post('/payment/:transactionID', requiresAuth(), async (req, res) => {
+  try {
+    const transactionID = parseInt(req.params.transactionID, 10);
+    const dbUser = req.dbUser;
+
+    // Verify the invoice belongs to this user (unless Employee/Owner)
+    const invoice = await getInvoiceByID(transactionID);
+    if (!invoice) return res.status(404).send('Invoice not found.');
+    if (
+      dbUser.role === 'Customer' &&
+      invoice.userid !== dbUser.userid
+    ) {
+      return res.status(403).send('Access denied.');
+    }
+
+    // Don't allow double payment
+    if (invoice.paymentmethod) {
+      return res.redirect('/my-services?error=This+invoice+has+already+been+paid.');
+    }
+
+    await payInvoice(transactionID, 'Credit Card');
+    res.redirect('/my-services?success=Payment+recorded+successfully!');
+  } catch (err) {
+    console.error(err);
+    res.redirect('/my-services?error=Payment+failed.+Please+try+again.');
+  }
+});
+
+// ── My Services (Customer view) ───────────────────────────────────────────────
+
+app.get('/my-services', requiresAuth(), async (req, res) => {
+  try {
+    const dbUser = req.dbUser;
+    const [repairs, invoices] = await Promise.all([
+      getRepairOrdersByUser(dbUser.userid),
+      getInvoicesByUser(dbUser.userid),
+    ]);
+    res.render('my-services', {
+      repairs,
+      invoices,
+      dbUser,
+      success: req.query.success || null,
+      error: req.query.error || null,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Internal Server Error');
+  }
+});
 
 /**
  * Server Activation
