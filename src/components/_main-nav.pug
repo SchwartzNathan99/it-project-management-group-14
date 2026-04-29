@@ -3,34 +3,24 @@ mixin main-nav(activeRoute)
     a(
       href="/"
       class=`nav-link${activeRoute === "/" ? " router-link-exact-active" : ""}`
-      data-bs-toggle="collapse" 
-      data-bs-target=".navbar-collapse.show"
     ) Home
     if isAuthenticated
       a(
         href="/create-repair"
         class=`nav-link${activeRoute === "/create-repair" ? " router-link-exact-active" : ""}`
-        data-bs-toggle="collapse" 
-        data-bs-target=".navbar-collapse.show"
       ) Schedule Repair
       if userRole === "Employee" || userRole === "Owner"
         a(
           href="/repair-orders"
           class=`nav-link${activeRoute.startsWith("/repair-orders") ? " router-link-exact-active" : ""}`
-          data-bs-toggle="collapse" 
-          data-bs-target=".navbar-collapse.show"
         ) Repair Orders
       if userRole === "Customer"
         a(
           href="/my-services"
           class=`nav-link${activeRoute === "/my-services" ? " router-link-exact-active" : ""}`
-          data-bs-toggle="collapse" 
-          data-bs-target=".navbar-collapse.show"
         ) My Services
     else
       a(
         href="/create-repair"
         class="nav-link"
-        data-bs-toggle="collapse" 
-        data-bs-target=".navbar-collapse.show"
       ) Schedule Repair
