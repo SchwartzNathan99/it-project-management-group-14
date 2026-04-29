@@ -16,8 +16,8 @@ block content
       div(class="form-group mr-3")
         label(class="mr-2") Status
         select(name="status" class="form-control" onchange="this.form.submit()")
-          option(value="" selected=filters.status==='' ? 'selected' : undefined) Active (default)
-          option(value="all" selected=filters.status==='all' ? 'selected' : undefined) All
+          option(value="" selected=filters.status==='' ? 'selected' : undefined) Active 
+          option(value="all" selected=filters.status==='all' ? 'selected' : undefined) All (default)
           option(value="Pending" selected=filters.status==='Pending' ? 'selected' : undefined) Pending
           option(value="In Progress" selected=filters.status==='In Progress' ? 'selected' : undefined) In Progress
           option(value="Completed" selected=filters.status==='Completed' ? 'selected' : undefined) Completed
