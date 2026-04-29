@@ -1,3 +1,5 @@
+/* ─── Base ─────────────────────────────────────────────────────────────── */
+
 body {
     margin: 0;
     padding: 0;
@@ -7,6 +9,7 @@ body {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overflow-y: scroll;
+    background-color: #f4f6f9;
 }
 
 code {
@@ -14,79 +17,76 @@ code {
     monospace;
 }
 
-.next-steps .fa-link {
-    margin-right: 5px;
+/* ─── Navbar branding ──────────────────────────────────────────────────── */
+
+.navbar-brand.logo::before {
+    content: "🐧 Penguin Auto";
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: #1a1a2e;
 }
 
-/* Fix for use only flexbox in content area */
-.next-steps .row {
-    margin-bottom: 0;
+.navbar-brand.logo:hover {
+    text-decoration: none;
 }
 
-.next-steps .col-md-5 {
-    margin-bottom: 3rem;
+/* ─── Status badges ────────────────────────────────────────────────────── */
+
+.badge {
+    font-size: 0.85rem;
+    padding: 0.4em 0.75em;
+    border-radius: 4px;
 }
 
-@media (max-width: 768px) {
-    .next-steps .col-md-5 {
-        margin-bottom: 0;
-    }
+.badge-pending {
+    background-color: #ffc107;
+    color: #212529;
 }
 
-.spinner {
-    position: absolute;
-    display: flex;
-    justify-content: center;
-    height: 100vh;
-    width: 100vw;
-    background-color: white;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    right: 0;
+.badge-in-progress {
+    background-color: #17a2b8;
+    color: #fff;
 }
 
-.result-block-container .result-block {
-    opacity: 1;
+.badge-completed {
+    background-color: #28a745;
+    color: #fff;
 }
 
-.loading {
-    display: flex;
-    min-height: 500px;
-    align-items: center;
-    justify-content: center;
+.badge-paid {
+    background-color: #1a1a2e;
+    color: #fff;
 }
 
-.userImg {
-    border-radius: 100px;
-    display: block;
-    height: 100px;
-    margin: 0 auto;
-    width: 100px;
+/* ─── Repair order list table ──────────────────────────────────────────── */
+
+.repair-orders-table tbody tr:hover {
+    background-color: #e8f0fe;
 }
 
-.hero .app-logo {
-    max-width: 10.5rem;
+/* ─── Repair order detail ──────────────────────────────────────────────── */
+
+.card-header.bg-dark {
+    background-color: #1a1a2e !important;
 }
 
-.next-steps .fa-link {
-    margin-right: 5px;
+/* ─── Payment form card ────────────────────────────────────────────────── */
+
+.payment-form-card {
+    background-color: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    max-width: 700px;
 }
 
-/* Fix for use only flexbox in content area */
-.next-steps .row {
-    margin-bottom: 0;
+/* ─── Jumbotron hero ───────────────────────────────────────────────────── */
+
+.jumbotron.bg-dark {
+    border-radius: 0;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%) !important;
 }
 
-.next-steps .col-md-5 {
-    margin-bottom: 3rem;
-}
-
-@media (max-width: 768px) {
-    .next-steps .col-md-5 {
-        margin-bottom: 0;
-    }
-}
+/* ─── Misc utility ─────────────────────────────────────────────────────── */
 
 .spinner {
     position: absolute;
@@ -101,7 +101,4 @@ code {
     right: 0;
 }
 
-.result-block-container .result-block {
-    opacity: 1;
-}
 
