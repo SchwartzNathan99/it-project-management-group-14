@@ -53,7 +53,7 @@ block content
                 div(class="form-group col-md-4")
                   label Status
                     select(name="status" class="form-control")
-                      each s in ['Pending','In Progress','Completed','Invoice Generated','Completed-and-Paid']
+                      each s in ['Pending','In Progress','Completed','Completed-and-Paid']
                         option(value=s selected=order.status===s ? 'selected' : undefined) #{s}
                 div(class="form-group col-md-4")
                   label Scheduled Date
