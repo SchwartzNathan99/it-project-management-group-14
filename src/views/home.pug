@@ -1,9 +1,32 @@
 extends ../components/layout
 
-include ../components/_hero
-include ../components/_home_content
-
 block content
-  +hero("https://cdn.auth0.com/blog/auth0-express-pug-sample/assets/logo.png")
-  hr
-  +home-content
+  div(class="jumbotron jumbotron-fluid bg-dark text-white mb-0")
+    div(class="container text-center py-5")
+      h1(class="display-4 font-weight-bold") Penguin Auto Specialists
+      p(class="lead mb-4") Professional automotive repair you can trust. From oil changes to major overhauls, our certified technicians keep you on the road.
+      a(href="/create-repair" class="btn btn-warning btn-lg px-5") Schedule a Repair
+
+  div(class="container my-5")
+    div(class="row text-center")
+      div(class="col-md-4 mb-4")
+        div(class="card h-100 shadow-sm")
+          div(class="card-body")
+            i(class="fas fa-wrench fa-3x text-primary mb-3")
+            h5(class="card-title") Full-Service Repairs
+            p(class="card-text") Engine diagnostics, brake service, transmission work, and everything in between.
+      div(class="col-md-4 mb-4")
+        div(class="card h-100 shadow-sm")
+          div(class="card-body")
+            i(class="fas fa-calendar-check fa-3x text-primary mb-3")
+            h5(class="card-title") Easy Scheduling
+            p(class="card-text") Book your appointment online in minutes. Choose your date, time, and services.
+      div(class="col-md-4 mb-4")
+        div(class="card h-100 shadow-sm")
+          div(class="card-body")
+            i(class="fas fa-dollar-sign fa-3x text-primary mb-3")
+            h5(class="card-title") Transparent Pricing
+            p(class="card-text") Receive a detailed invoice before you pay. No surprises, no hidden fees.
+
+  div(class="text-center my-5")
+    a(href="/create-repair" class="btn btn-primary btn-lg") Get Started — Schedule Your Repair

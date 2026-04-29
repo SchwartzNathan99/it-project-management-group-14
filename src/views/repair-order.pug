@@ -1,0 +1,195 @@
+extends ../components/layout
+
+include ../components/_status-badge
+
+block content
+  div(class="container-fluid my-4")
+
+    div(class="d-flex justify-content-between align-items-center mb-3")
+      div
+        h2 Repair Order ##{order.repairid}
+        +status-badge(order.status)
+      a(href="/repair-orders" class="btn btn-outline-secondary") ← Back to List
+
+    if success
+      div(class="alert alert-success") #{success}
+    if error
+      div(class="alert alert-danger") #{error}
+
+    form(method="POST" action=`/repair-orders/${order.repairid}`)
+
+      div(class="row")
+
+        //- ── LEFT COLUMN: Customer & Vehicle Info ───────────────────────────
+        div(class="col-md-4")
+          div(class="card mb-3")
+            div(class="card-header bg-dark text-white") Customer
+            div(class="card-body small")
+              p(class="mb-1")
+                strong #{order.customer_firstname} #{order.customer_lastname}
+              p(class="mb-1") #{order.customer_email}
+              p(class="mb-1") #{order.customer_phone || '—'}
+              p(class="mb-0")
+                | #{order.customer_address || ''}
+                if order.customer_address
+                  br
+                | #{order.customer_city || ''} #{order.customer_state || ''} #{order.customer_zip || ''}
+
+          div(class="card mb-3")
+            div(class="card-header bg-dark text-white") Vehicle
+            div(class="card-body small")
+              p(class="mb-1")
+                strong #{order.year} #{order.make} #{order.model}
+              p(class="mb-1") Color: #{order.color || '—'}
+              p(class="mb-1") VIN: #{order.vin}
+              p(class="mb-0") Plate: #{order.licenseplatenumber || '—'}
+
+        //- ── RIGHT COLUMN: Editable Fields ──────────────────────────────────
+        div(class="col-md-8")
+          div(class="card mb-3")
+            div(class="card-header bg-dark text-white") Repair Details
+            div(class="card-body")
+              div(class="form-row")
+                div(class="form-group col-md-4")
+                  label Status
+                    select(name="status" class="form-control")
+                      each s in ['Pending','In Progress','Completed','Invoice Generated','Completed-and-Paid']
+                        option(value=s selected=order.status===s ? 'selected' : undefined) #{s}
+                div(class="form-group col-md-4")
+                  label Scheduled Date
+                  input(type="date" name="scheduledDate" class="form-control"
+                    value=order.scheduleddate ? new Date(order.scheduleddate).toISOString().substring(0,10) : '')
+                div(class="form-group col-md-4")
+                  label Scheduled Time
+                  input(type="time" name="scheduledTime" class="form-control"
+                    value=order.scheduledtime ? order.scheduledtime.substring(0,5) : '')
+
+              div(class="form-group")
+                label Assigned Tech
+                select(name="assignedTechID" class="form-control")
+                  option(value="") — Unassigned —
+                  each emp in employees
+                    option(value=emp.userid selected=order.assignedtechid===emp.userid ? 'selected' : undefined)
+                      | #{emp.firstname} #{emp.lastname}
+
+              div(class="form-group")
+                label Tech Notes
+                textarea(name="techNotes" class="form-control" rows="3") #{order.technotes || ''}
+
+          //- ── Services ────────────────────────────────────────────────────
+          div(class="card mb-3")
+            div(class="card-header bg-dark text-white") Services
+            div(class="card-body")
+              if order.services && order.services.length > 0
+                table(class="table table-sm mb-0")
+                  thead
+                    tr
+                      th Service
+                      th Rate/hr
+                      th Labor Hrs
+                      th Line Total
+                  tbody
+                    each svc in order.services
+                      tr
+                        td #{svc.servicename}
+                        td $#{parseFloat(svc.hourlyrate).toFixed(2)}
+                        td
+                          input(
+                            type="number"
+                            name=`laborHours_${svc.repairserviceid}`
+                            class="form-control form-control-sm labor-hours"
+                            value=svc.laborhours || ''
+                            min="0" step="0.25"
+                            data-rate=svc.hourlyrate
+                          )
+                        td(class="line-total-svc") —
+              else
+                p(class="text-muted mb-0") No services added.
+
+          //- ── Parts ───────────────────────────────────────────────────────
+          div(class="card mb-3")
+            div(class="card-header bg-dark text-white") Parts
+            div(class="card-body")
+              table(class="table table-sm mb-0")
+                thead
+                  tr
+                    th Part
+                    th Unit Cost
+                    th Qty
+                    th Line Total
+                tbody
+                  each part in parts
+                    - var existingPart = order.parts.find(p => p.partid === part.partid)
+                    - var qty = existingPart ? existingPart.quantity : 0
+                    tr
+                      td #{part.partname}
+                      td $#{parseFloat(part.cost).toFixed(2)}
+                      td
+                        input(
+                          type="number"
+                          name=`partQty_${part.partid}`
+                          class="form-control form-control-sm part-qty"
+                          value=qty
+                          min="0" step="1"
+                          data-cost=part.cost
+                        )
+                      td(class="line-total-part") —
+
+          //- ── Totals ──────────────────────────────────────────────────────
+          div(class="card mb-3")
+            div(class="card-body")
+              div(class="d-flex justify-content-between")
+                span Parts Subtotal:
+                strong(id="partsSubtotal") $0.00
+              div(class="d-flex justify-content-between")
+                span Labor Subtotal:
+                strong(id="laborSubtotal") $0.00
+              hr
+              div(class="d-flex justify-content-between h5")
+                span Grand Total:
+                strong(id="grandTotal") $0.00
+
+          div(class="d-flex justify-content-between")
+            button(type="submit" class="btn btn-primary btn-lg") Save Changes
+            if order.status === 'Completed'
+              button(
+                type="submit"
+                class="btn btn-warning btn-lg ml-2"
+                formaction=`/repair-orders/${order.repairid}/invoice`
+                formmethod="POST"
+              ) Generate Invoice
+
+  script.
+    function calcTotals() {
+      var partsTotal = 0;
+      document.querySelectorAll('.part-qty').forEach(function(inp) {
+        var qty = parseFloat(inp.value) || 0;
+        var cost = parseFloat(inp.dataset.cost) || 0;
+        var row = inp.closest('tr');
+        var lineCell = row.querySelector('.line-total-part');
+        var line = qty * cost;
+        lineCell.textContent = '$' + line.toFixed(2);
+        partsTotal += line;
+      });
+
+      var laborTotal = 0;
+      document.querySelectorAll('.labor-hours').forEach(function(inp) {
+        var hrs = parseFloat(inp.value) || 0;
+        var rate = parseFloat(inp.dataset.rate) || 0;
+        var row = inp.closest('tr');
+        var lineCell = row.querySelector('.line-total-svc');
+        var line = hrs * rate;
+        lineCell.textContent = '$' + line.toFixed(2);
+        laborTotal += line;
+      });
+
+      document.getElementById('partsSubtotal').textContent = '$' + partsTotal.toFixed(2);
+      document.getElementById('laborSubtotal').textContent = '$' + laborTotal.toFixed(2);
+      document.getElementById('grandTotal').textContent = '$' + (partsTotal + laborTotal).toFixed(2);
+    }
+
+    document.querySelectorAll('.part-qty, .labor-hours').forEach(function(inp) {
+      inp.addEventListener('input', calcTotals);
+    });
+
+    calcTotals();

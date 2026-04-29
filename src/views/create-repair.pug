@@ -1,0 +1,116 @@
+extends ../components/layout
+
+block content
+  div(class="container my-4")
+    h2(class="mb-4") Schedule a Repair
+
+    if error
+      div(class="alert alert-danger") #{error}
+
+    form(method="POST" action="/create-repair")
+
+      //- ── Contact Info ──────────────────────────────────────────────────────
+      div(class="card mb-4")
+        div(class="card-header bg-primary text-white") Your Information
+        div(class="card-body")
+          div(class="form-row")
+            div(class="form-group col-md-6")
+              label First Name *
+              input(type="text" name="firstName" class="form-control" required value=dbUser.firstname || '')
+            div(class="form-group col-md-6")
+              label Last Name *
+              input(type="text" name="lastName" class="form-control" required value=dbUser.lastname || '')
+          div(class="form-group")
+            label Street Address *
+            input(type="text" name="streetAddress" class="form-control" required value=dbUser.streetaddress || '')
+          div(class="form-row")
+            div(class="form-group col-md-5")
+              label City *
+              input(type="text" name="city" class="form-control" required value=dbUser.city || '')
+            div(class="form-group col-md-4")
+              label State *
+              input(type="text" name="state" class="form-control" required value=dbUser.state || '')
+            div(class="form-group col-md-3")
+              label Zip Code *
+              input(type="text" name="zipCode" class="form-control" required value=dbUser.zipcode || '')
+          div(class="form-group")
+            label Phone Number
+            input(type="tel" name="phoneNumber" class="form-control" value=dbUser.phonenumber || '')
+
+      //- ── Vehicle ──────────────────────────────────────────────────────────
+      div(class="card mb-4")
+        div(class="card-header bg-primary text-white") Vehicle
+        div(class="card-body")
+          div(class="form-group")
+            label Select Vehicle *
+            select(name="vehicleID" id="vehicleSelect" class="form-control" required onchange="toggleNewVehicleForm(this.value)")
+              if vehicles.length > 0
+                each v in vehicles
+                  option(value=v.vehicleid) #{v.year} #{v.make} #{v.model} — VIN: #{v.vin}
+              option(value="new") + Add a New Vehicle
+
+          div(id="newVehicleForm" style="display:none")
+            hr
+            h6 New Vehicle Details
+            div(class="form-row")
+              div(class="form-group col-md-4")
+                label Make *
+                input(type="text" name="newVehicleMake" class="form-control" placeholder="e.g. Toyota")
+              div(class="form-group col-md-4")
+                label Model *
+                input(type="text" name="newVehicleModel" class="form-control" placeholder="e.g. Camry")
+              div(class="form-group col-md-4")
+                label Year *
+                input(type="number" name="newVehicleYear" class="form-control" placeholder="e.g. 2020" min="1900" max="2100")
+            div(class="form-row")
+              div(class="form-group col-md-4")
+                label Color
+                input(type="text" name="newVehicleColor" class="form-control" placeholder="e.g. Silver")
+              div(class="form-group col-md-4")
+                label License Plate
+                input(type="text" name="newVehiclePlate" class="form-control" placeholder="e.g. ABC-1234")
+              div(class="form-group col-md-4")
+                label VIN *
+                input(type="text" name="newVehicleVIN" class="form-control" placeholder="17-character VIN")
+
+      //- ── Appointment ──────────────────────────────────────────────────────
+      div(class="card mb-4")
+        div(class="card-header bg-primary text-white") Appointment
+        div(class="card-body")
+          div(class="form-row")
+            div(class="form-group col-md-6")
+              label Date * (Mon–Fri only)
+              input(type="date" name="scheduledDate" id="scheduledDate" class="form-control" required)
+            div(class="form-group col-md-6")
+              label Time * (9:00 AM – 5:00 PM)
+              input(type="time" name="scheduledTime" class="form-control" required min="09:00" max="17:00" step="1800")
+
+      //- ── Services ─────────────────────────────────────────────────────────
+      div(class="card mb-4")
+        div(class="card-header bg-primary text-white") Services
+        div(class="card-body")
+          div(class="form-group")
+            label Select Services (hold Ctrl/Cmd to select multiple)
+            select(name="serviceIDs" class="form-control" multiple size=Math.min(services.length, 8))
+              each s in services
+                option(value=s.serviceid) #{s.servicename} — $#{parseFloat(s.hourlyrate).toFixed(2)}/hr
+
+      button(type="submit" class="btn btn-success btn-lg btn-block") Schedule Repair
+
+  script.
+    function toggleNewVehicleForm(val) {
+      document.getElementById('newVehicleForm').style.display = (val === 'new') ? 'block' : 'none';
+    }
+    // Initialize in case "new" is pre-selected
+    toggleNewVehicleForm(document.getElementById('vehicleSelect').value);
+
+    // Disable weekends on the date picker
+    var dateInput = document.getElementById('scheduledDate');
+    dateInput.addEventListener('change', function() {
+      var d = new Date(this.value + 'T00:00:00');
+      var day = d.getDay();
+      if (day === 0 || day === 6) {
+        alert('Please select a weekday (Monday–Friday).');
+        this.value = '';
+      }
+    });

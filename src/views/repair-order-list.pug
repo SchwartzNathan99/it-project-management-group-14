@@ -1,0 +1,58 @@
+extends ../components/layout
+
+include ../components/_status-badge
+
+block content
+  div(class="container-fluid my-4")
+    div(class="d-flex justify-content-between align-items-center mb-3")
+      h2 Repair Orders
+      a(href="/create-repair" class="btn btn-success") + New Repair
+
+    if success
+      div(class="alert alert-success") #{success}
+
+    //- ── Filters ────────────────────────────────────────────────────────────
+    form(method="GET" action="/repair-orders" class="form-inline mb-4")
+      div(class="form-group mr-3")
+        label(class="mr-2") Status
+        select(name="status" class="form-control" onchange="this.form.submit()")
+          option(value="" selected=filters.status==='' ? 'selected' : undefined) Active (default)
+          option(value="all" selected=filters.status==='all' ? 'selected' : undefined) All
+          option(value="Pending" selected=filters.status==='Pending' ? 'selected' : undefined) Pending
+          option(value="In Progress" selected=filters.status==='In Progress' ? 'selected' : undefined) In Progress
+          option(value="Completed" selected=filters.status==='Completed' ? 'selected' : undefined) Completed
+          option(value="Invoice Generated" selected=filters.status==='Invoice Generated' ? 'selected' : undefined) Invoice Generated
+          option(value="Completed-and-Paid" selected=filters.status==='Completed-and-Paid' ? 'selected' : undefined) Completed-and-Paid
+      div(class="form-group mr-3")
+        label(class="mr-2") Tech
+        select(name="techID" class="form-control" onchange="this.form.submit()")
+          option(value="" selected=filters.techID==='' ? 'selected' : undefined) All Techs
+          each emp in employees
+            option(value=emp.userid selected=filters.techID==emp.userid ? 'selected' : undefined) #{emp.firstname} #{emp.lastname}
+
+    //- ── Table ──────────────────────────────────────────────────────────────
+    if orders.length === 0
+      p(class="text-muted") No repair orders found.
+    else
+      div(class="table-responsive")
+        table(class="table table-hover repair-orders-table")
+          thead(class="thead-dark")
+            tr
+              th #
+              th Customer
+              th Vehicle
+              th Scheduled Date
+              th Time
+              th Status
+              th Assigned Tech
+          tbody
+            each o in orders
+              tr(class="repair-order-row" onclick=`window.location='/repair-orders/${o.repairid}'` style="cursor:pointer")
+                td #{o.repairid}
+                td #{o.customer_firstname} #{o.customer_lastname}
+                td #{o.year} #{o.make} #{o.model}
+                td #{new Date(o.scheduleddate).toLocaleDateString('en-US', {timeZone:'UTC'})}
+                td #{o.scheduledtime ? o.scheduledtime.substring(0,5) : ''}
+                td
+                  +status-badge(o.status)
+                td #{o.tech_firstname ? o.tech_firstname + ' ' + o.tech_lastname : '—'}

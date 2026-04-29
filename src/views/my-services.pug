@@ -1,0 +1,113 @@
+extends ../components/layout
+
+block content
+  div(class="container my-4")
+    h2(class="mb-4") My Services
+
+    if success
+      div(class="alert alert-success") #{success}
+    if error
+      div(class="alert alert-danger") #{error}
+
+    //- ── Active Repairs ──────────────────────────────────────────────────────
+    h4(class="mb-3") Active Repairs
+
+    if repairs.length === 0
+      p(class="text-muted") No active repairs found.
+    else
+      div(class="table-responsive mb-5")
+        table(class="table table-hover")
+          thead(class="thead-dark")
+            tr
+              th Repair #
+              th Vehicle
+              th Services
+              th Scheduled Date
+              th Scheduled Time
+              th Status
+          tbody
+            each repair in repairs
+              tr
+                td #{repair.repairid}
+                td #{repair.year} #{repair.make} #{repair.model}
+                td #{repair.services_summary}
+                td
+                  if repair.scheduleddate
+                    | #{new Date(repair.scheduleddate).toLocaleDateString()}
+                  else
+                    | —
+                td
+                  if repair.scheduledtime
+                    | #{repair.scheduledtime.substring(0, 5)}
+                  else
+                    | —
+                td
+                  span(class=`badge badge-${repair.status === 'Pending' ? 'pending' : repair.status === 'In Progress' ? 'in-progress' : repair.status === 'Completed' ? 'completed' : 'info'}`)
+                    | #{repair.status}
+
+    //- ── Invoices to Pay ─────────────────────────────────────────────────────
+    h4(class="mb-3") Invoices
+
+    if invoices.length === 0
+      p(class="text-muted") No invoices found.
+    else
+      div(class="table-responsive")
+        table(class="table table-hover")
+          thead(class="thead-dark")
+            tr
+              th Invoice #
+              th Repair ID
+              th Vehicle
+              th Date
+              th Amount
+              th Status
+              th Action
+          tbody
+            each inv in invoices
+              - var isPaid = !!inv.paymentmethod
+              tr
+                td #{inv.invoicenumber}
+                td #{inv.repairid || '—'}
+                td #{inv.year ? inv.year + ' ' + inv.make + ' ' + inv.model : '—'}
+                td #{new Date(inv.created_at).toLocaleDateString()}
+                td $#{parseFloat(inv.transactionamount).toFixed(2)}
+                td
+                  if isPaid
+                    span(class="badge badge-paid") Paid
+                  else
+                    span(class="badge badge-pending") Unpaid
+                td
+                  if !isPaid
+                    button(
+                      class="btn btn-sm btn-outline-primary"
+                      type="button"
+                      data-bs-toggle="collapse"
+                      data-bs-target=`#pay-${inv.transactionid}`
+                      aria-expanded="false"
+                    ) Pay Now
+                  else
+                    span(class="text-muted small") #{inv.paymentmethod}
+              if !isPaid
+                tr
+                  td(colspan="7" class="p-0 border-0")
+                    div(class="collapse" id=`pay-${inv.transactionid}`)
+                      div(class="p-3 payment-form-card")
+                        h5(class="mb-3") Payment Details
+                        form(method="POST" action=`/payment/${inv.transactionid}`)
+                          div(class="form-row")
+                            div(class="form-group col-md-6")
+                              label Cardholder Name *
+                              input(type="text" name="cardholderName" class="form-control" required placeholder="Full name on card")
+                            div(class="form-group col-md-6")
+                              label Card Number *
+                              input(type="text" name="cardNumber" class="form-control" required placeholder="•••• •••• •••• ••••" maxlength="19")
+                          div(class="form-row")
+                            div(class="form-group col-md-4")
+                              label Expiration *
+                              input(type="text" name="expiration" class="form-control" required placeholder="MM/YY" maxlength="5")
+                            div(class="form-group col-md-4")
+                              label CVV *
+                              input(type="text" name="cvv" class="form-control" required placeholder="•••" maxlength="4")
+                            div(class="form-group col-md-4 d-flex align-items-end")
+                              button(type="submit" class="btn btn-success btn-block")
+                                | Pay $#{parseFloat(inv.transactionamount).toFixed(2)}
