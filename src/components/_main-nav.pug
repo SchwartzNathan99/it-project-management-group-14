@@ -2,16 +2,22 @@ mixin main-nav(activeRoute)
   div(class="navbar-nav mr-auto")
     a(
       href="/"
-      class="nav-link",
-      class=`${activeRoute === "/" && "router-link-exact-active"}`
+      class=`nav-link${activeRoute === "/" ? " router-link-exact-active" : ""}`
     ) Home
-    a(
-      href="/profile"
-      class="nav-link",
-      class=`${activeRoute === "/profile" && "router-link-exact-active"}`
-    ) Profile
-    a(
-      href="/external-api"
-      class="nav-link",
-      class=`${activeRoute === "/external-api" && "router-link-exact-active"}`
-    ) External API
+    if isAuthenticated
+      a(
+        href="/create-repair"
+        class=`nav-link${activeRoute === "/create-repair" ? " router-link-exact-active" : ""}`
+      ) Schedule Repair
+      if userRole === "Employee" || userRole === "Owner"
+        a(
+          href="/repair-orders"
+          class=`nav-link${activeRoute.startsWith("/repair-orders") ? " router-link-exact-active" : ""}`
+        ) Repair Orders
+      if userRole === "Customer"
+        a(
+          href="/my-services"
+          class=`nav-link${activeRoute === "/my-services" ? " router-link-exact-active" : ""}`
+        ) My Services
+    else
+      a(href="/create-repair" class="nav-link") Schedule Repair

@@ -5,6 +5,17 @@ mixin nav-bar(activeRoute)
   div(class="nav-container mb-3")
     nav(class="navbar navbar-expand-md navbar-light bg-light")
       div(class="container")
-        div(class="navbar-brand logo")
-        +main-nav(activeRoute)
-        +auth-nav(isAuthenticated)
+        a(href="/" class="navbar-brand logo")
+        button(
+          class="navbar-toggler"
+          type="button"
+          data-toggle="collapse"
+          data-target="#navbarContent"
+          aria-controls="navbarContent"
+          aria-expanded="false"
+          aria-label="Toggle navigation"
+        )
+          span(class="navbar-toggler-icon")
+        div(class="collapse navbar-collapse" id="navbarContent")
+          +main-nav(activeRoute)
+          +auth-nav(isAuthenticated)

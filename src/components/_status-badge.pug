@@ -1,0 +1,7 @@
+mixin status-badge(status)
+  - var cls = 'badge badge-secondary'
+  - if (status === 'Pending') cls = 'badge badge-pending'
+  - if (status === 'In Progress') cls = 'badge badge-in-progress'
+  - if (status === 'Completed') cls = 'badge badge-completed'
+  - if (status === 'Completed-and-Paid') cls = 'badge badge-paid'
+  span(class=cls) #{status}
